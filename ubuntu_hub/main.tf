@@ -85,7 +85,7 @@ resource "azurerm_network_interface" "ubuntu_2_in" {
     ip_configuration {
         name                          = "config"
         private_ip_address_allocation = "Static"
-        private_ip_address            = cidrhost(var.subnetIngressCidr, 5)
+        private_ip_address            = cidrhost(var.subnetIngressCidr, 6)
         subnet_id                     = var.subnetIngressId
     }
 }
@@ -155,7 +155,7 @@ resource "azurerm_network_interface" "ubuntu_2_out" {
     ip_configuration {
         name                          = "config"
         private_ip_address_allocation = "Static"
-        private_ip_address            = cidrhost(var.subnetEgressCidr, 5)
+        private_ip_address            = cidrhost(var.subnetEgressCidr, 6)
         public_ip_address_id          = azurerm_public_ip.ubuntu_2.id
         subnet_id                     = var.subnetEgressId
     }
