@@ -39,8 +39,8 @@ resource "azurerm_linux_virtual_machine" "ubuntu" {
     resource_group_name               = var.rg_name
     location                          = var.rg_location
     size                              = "Standard_B2ms"
-    admin_username                    = "adminuser"
-    admin_password                    = "$loppy0ats!"
+    admin_username                    = "azureuser"
+    admin_password                    = "Testing123!!"
     disable_password_authentication   = false
     network_interface_ids             = [azurerm_network_interface.ubuntu.id]
 

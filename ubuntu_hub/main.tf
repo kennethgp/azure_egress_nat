@@ -29,14 +29,12 @@ resource "azurerm_lb" "lb" {
 
 resource "azurerm_lb_backend_address_pool" "lb" {
     name                              = "backend"
-    resource_group_name               = var.rg_name
     loadbalancer_id                   = azurerm_lb.lb.id
 }
 
 
 resource "azurerm_lb_probe" "lb" {
     name                              = "ssh"
-    resource_group_name               = var.rg_name
     loadbalancer_id                   = azurerm_lb.lb.id
     port                              = 22
 }
@@ -44,8 +42,7 @@ resource "azurerm_lb_probe" "lb" {
 
 resource "azurerm_lb_rule" "lb" {
     name                              = "ha"
-    resource_group_name               = var.rg_name
-    backend_address_pool_id           = azurerm_lb_backend_address_pool.lb.id
+    backend_address_pool_ids          = [azurerm_lb_backend_address_pool.lb.id]
     backend_port                      = 0
     frontend_ip_configuration_name    = "frontend"
     frontend_port                     = 0
@@ -79,6 +76,20 @@ resource "azurerm_network_interface" "ubuntu_in" {
     }
 }
 
+resource "azurerm_network_interface" "ubuntu_2_in" {
+    name                              = "${local.name}-2-in"
+    location                          = var.rg_location
+    resource_group_name               = var.rg_name
+    enable_ip_forwarding              = true
+
+    ip_configuration {
+        name                          = "config"
+        private_ip_address_allocation = "Static"
+        private_ip_address            = cidrhost(var.subnetIngressCidr, 5)
+        subnet_id                     = var.subnetIngressId
+    }
+}
+
 
 resource "azurerm_network_interface_security_group_association" "ubuntu_in" {
     network_interface_id              = azurerm_network_interface.ubuntu_in.id
@@ -92,9 +103,29 @@ resource "azurerm_network_interface_backend_address_pool_association" "ubuntu_in
     network_interface_id              = azurerm_network_interface.ubuntu_in.id
 }
 
+resource "azurerm_network_interface_security_group_association" "ubuntu_2_in" {
+    network_interface_id              = azurerm_network_interface.ubuntu_2_in.id
+    network_security_group_id         = var.nsg
+}
+
+
+resource "azurerm_network_interface_backend_address_pool_association" "ubuntu_2_in" {
+    backend_address_pool_id           = azurerm_lb_backend_address_pool.lb.id
+    ip_configuration_name             = "config"
+    network_interface_id              = azurerm_network_interface.ubuntu_2_in.id
+}
+
 
 resource "azurerm_public_ip" "ubuntu" {
     name                              = local.name
+    resource_group_name               = var.rg_name
+    location                          = var.rg_location
+    allocation_method                 = "Static"
+    sku                               = "Standard"
+}
+
+resource "azurerm_public_ip" "ubuntu_2" {
+    name                              = "${local.name}-2"
     resource_group_name               = var.rg_name
     location                          = var.rg_location
     allocation_method                 = "Static"
@@ -116,6 +147,21 @@ resource "azurerm_network_interface" "ubuntu_out" {
     }
 }
 
+resource "azurerm_network_interface" "ubuntu_2_out" {
+    name                              = "${local.name}-2-out"
+    location                          = var.rg_location
+    resource_group_name               = var.rg_name
+
+    ip_configuration {
+        name                          = "config"
+        private_ip_address_allocation = "Static"
+        private_ip_address            = cidrhost(var.subnetEgressCidr, 5)
+        public_ip_address_id          = azurerm_public_ip.ubuntu_2.id
+        subnet_id                     = var.subnetEgressId
+    }
+}
+
+
 
 data "template_file" "routing" {
     template                          = file("${path.module}/routing.sh")
@@ -132,13 +178,44 @@ resource "azurerm_linux_virtual_machine" "ubuntu" {
     resource_group_name               = var.rg_name
     location                          = var.rg_location
     size                              = "Standard_B2ms"
-    admin_username                    = "adminuser"
-    admin_password                    = "$loppy0ats!"
+    admin_username                    = "azureuser"
+    admin_password                    = "Testing123!!"
     custom_data                       = local.base64_template
     disable_password_authentication   = false
     network_interface_ids             = [
         azurerm_network_interface.ubuntu_out.id,
         azurerm_network_interface.ubuntu_in.id
+    ]
+
+    boot_diagnostics {
+        storage_account_uri           = azurerm_storage_account.ubuntu.primary_blob_endpoint
+    }
+
+    os_disk {
+        caching                       = "ReadWrite"
+        storage_account_type          = "Standard_LRS"
+    }
+
+    source_image_reference {
+        publisher                     = "Canonical"
+        offer                         = "0001-com-ubuntu-server-focal"
+        sku                           = "20_04-lts"
+        version                       = "latest"
+    }
+}
+
+resource "azurerm_linux_virtual_machine" "ubuntu_2" {
+    name                              = "${local.name}-2"
+    resource_group_name               = var.rg_name
+    location                          = var.rg_location
+    size                              = "Standard_B2ms"
+    admin_username                    = "azureuser"
+    admin_password                    = "Testing123!!"
+    custom_data                       = local.base64_template
+    disable_password_authentication   = false
+    network_interface_ids             = [
+        azurerm_network_interface.ubuntu_2_out.id,
+        azurerm_network_interface.ubuntu_2_in.id
     ]
 
     boot_diagnostics {
