@@ -167,9 +167,13 @@ data "template_file" "routing" {
     template                          = file("${path.module}/routing.sh")
 }
 
+data "template_file" "routing-2" {
+    template                          = file("${path.module}/routing-2.sh")
+}
 
 locals {
-    base64_template                  = base64encode(data.template_file.routing.rendered)
+    base64_template_1                  = base64encode(data.template_file.routing.rendered)
+    base64_template_2                  = base64encode(data.template_file.routing-2.rendered)
 }
 
 
@@ -180,7 +184,7 @@ resource "azurerm_linux_virtual_machine" "ubuntu" {
     size                              = "Standard_B2ms"
     admin_username                    = "azureuser"
     admin_password                    = "Testing123!!"
-    custom_data                       = local.base64_template
+    custom_data                       = local.base64_template_1
     disable_password_authentication   = false
     network_interface_ids             = [
         azurerm_network_interface.ubuntu_out.id,
@@ -211,7 +215,7 @@ resource "azurerm_linux_virtual_machine" "ubuntu_2" {
     size                              = "Standard_B2ms"
     admin_username                    = "azureuser"
     admin_password                    = "Testing123!!"
-    custom_data                       = local.base64_template
+    custom_data                       = local.base64_template_2
     disable_password_authentication   = false
     network_interface_ids             = [
         azurerm_network_interface.ubuntu_2_out.id,
